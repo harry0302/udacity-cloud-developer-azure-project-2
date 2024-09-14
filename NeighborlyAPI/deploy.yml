@@ -1,0 +1,193 @@
+data:
+  FUNCTIONS_WORKER_RUNTIME: Tm9uZQ==
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hann15
+---
+data:
+  host.master: RElBQVVqeTMwRnhqbjJHeVJhcnVnaktoem9KQ1ZjZEZBWXhRSGptTm5oSTZBekZ1QWcxSzhnPT0=
+  host.function.default: WnpvQkNGMzVuUVp3bHJhYjRrZzVVUDBHZmpoWVNpQXRMakZFQUloaVgtN1lBekZ1MWpZLU9nPT0=
+  host.systemKey.default: dktyTzlWS2dmcnNqVDZRRU84cVFOTzlyQVVRRXMzM2tNRFh5SVBpak9TUnhBekZ1VjdMUW5BPT0=
+  functions.deleteadvertisement.default: bmJIaVZjdFZmdzBKTVBzTDNIdEd6Y0haVENOb09lQnc4R2pRRWJqT1FqZ1lBekZ1YnE1VHVBPT0=
+  functions.getpost.default: VDVQeUFYOTFsaV9OWkpabTJCWjNLLWZ5TzVVcU5ubnFfcjdCYzRCSTNYUDBBekZ1bmxEZ0JnPT0=
+  functions.getadvertisement.default: V2RJeFNyVDFUR2RUemVNOXJuTDRUa2F3XzJZNFRFQm5aak9SU3Vpb29wWHVBekZ1eFB1N3Z3PT0=
+  functions.createadvertisement.default: QS02N0xUYWdwWWEtRTBmNDlSN3hrS3RJWWw0QkQwTnZ4VHVkcFZiR21ON0pBekZ1Q0FTYld3PT0=
+  functions.getadvertisements.default: ZjBHR1lRTVV2c0JkaUQ2ZFlWQkswNkgxQnZ3ODZSMkQ5WHZLaTFTaGY2Y3ZBekZ1Q282MjV3PT0=
+  functions.updateadvertisement.default: cDhSTXR5VWNuV1F1aHRsS3hBWnFsTEdqQlRZTy1tempQX3FYZDV4U3ZmaUxBekZ1eHFEZGlnPT0=
+  functions.getposts.default: ZlcwQ0M2WkpvSkNZdWZaTVJ6dXh6Nm1RLTVJNGVNcWR6Q1VBSDNHaDNaX0tBekZ1UVVLaGJRPT0=
+apiVersion: v1
+kind: Secret
+metadata:
+  name: func-keys-kube-secret-hann15
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hann15-function-keys-identity-svc-act
+---
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  - configMaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: functions-keys-manager-role
+---
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: functions-keys-manager-role
+subjects:
+- kind: ServiceAccount
+  name: hann15-function-keys-identity-svc-act
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hann15-function-keys-identity-svc-act-functions-keys-manager-rolebinding
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hann15-http
+spec:
+  selector:
+    app: hann15-http
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hann15-http
+  labels:
+    app: hann15-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hann15-http
+  template:
+    metadata:
+      labels:
+        app: hann15-http
+    spec:
+      containers:
+      - name: hann15-http
+        image: hann152.azurecr.io/hann15:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: AzureFunctionsJobHost__functions__0
+          value: deleteAdvertisement
+        - name: AzureFunctionsJobHost__functions__1
+          value: getPost
+        - name: AzureFunctionsJobHost__functions__2
+          value: getAdvertisement
+        - name: AzureFunctionsJobHost__functions__3
+          value: createAdvertisement
+        - name: AzureFunctionsJobHost__functions__4
+          value: getAdvertisements
+        - name: AzureFunctionsJobHost__functions__5
+          value: updateAdvertisement
+        - name: AzureFunctionsJobHost__functions__6
+          value: getPosts
+        - name: AzureWebJobsSecretStorageType
+          value: kubernetes
+        - name: AzureWebJobsKubernetesSecretName
+          value: secrets/func-keys-kube-secret-hann15
+        envFrom:
+        - secretRef:
+            name: hann15
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+        startupProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+      serviceAccountName: hann15-function-keys-identity-svc-act
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hann15
+  labels:
+    app: hann15
+spec:
+  selector:
+    matchLabels:
+      app: hann15
+  template:
+    metadata:
+      labels:
+        app: hann15
+    spec:
+      containers:
+      - name: hann15
+        image: hann152.azurecr.io/hann15:latest
+        env:
+        - name: AzureFunctionsJobHost__functions__0
+          value: eventHubTrigger
+        envFrom:
+        - secretRef:
+            name: hann15
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+        startupProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+      serviceAccountName: hann15-function-keys-identity-svc-act
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: hann15
+  labels: {}
+spec:
+  scaleTargetRef:
+    name: hann15
+  triggers:
+  - type: eventgridtrigger
+    metadata:
+      direction: in
+---
+
